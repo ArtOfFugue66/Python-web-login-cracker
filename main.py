@@ -46,8 +46,11 @@ def crack(pURL, pData):
     global args
     if args.verbose:
         print("[!] Attempting " + str(pData) + "\n")
+
     r = requests.post(url=pURL, data=pData)
-    # r = requests.get(url=pURL)
+    r.close()
+    print(r.request.body)
+    print(r.request.headers)
     reg = re.search(args.message, r.text)
 
     if reg is None:  # If the login error message is not read
@@ -78,6 +81,10 @@ def main():
             # 'passwords' is a generator object, can be used in a loop
             passwords_batch = list(islice(infile, thread_count))
             batch_length = len(passwords_batch)
+            if batch_length <= 0:
+                return
+            if batch_length < thread_count:
+                semaphore = False
             thread_count = min(batch_length, thread_count)
             if args.user is not None:  # If --username argument is specified, use that username in the request body
                 re.sub(args.data, "username=.+", "username=" + str(args.user))
@@ -91,8 +98,7 @@ def main():
                 threads[i].start()
             for i in range(thread_count):
                 threads[i].join()
-            if batch_length < thread_count:
-                semaphore = False
+            threads = []
 
 
 if __name__ == '__main__':
