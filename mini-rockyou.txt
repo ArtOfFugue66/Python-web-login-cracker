@@ -16,6 +16,7 @@ princess
 1234567
 rockyou
 123456
+sobe
 12345
 123456789
 password
@@ -24,3 +25,4 @@ princess
 querty
 1234567
 rockyou
+samael

