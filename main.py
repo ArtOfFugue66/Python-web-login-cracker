@@ -11,6 +11,7 @@ EXIT_SUCCESS = 0
 
 thread_count = None
 args = None
+# TODO: add switch to select or leave out the use of proxies
 proxies = {
 	"http" : "http://127.0.0.1:8080",
      	"https" : "https://127.0.0.1:8080",
