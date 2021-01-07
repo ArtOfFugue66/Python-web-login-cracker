@@ -23,8 +23,6 @@ def parse_arguments():
     parser.add_argument("-m", "--message", type=str, action="store", required=True, help="specify login error message "
                                                                                          "(used to check for a "
                                                                                          "password match)")
-    # TODO: check if this is set in main() and change program logic (i.e., also replace username in 'args.data'
-    #  before replacing the password)
     parser.add_argument("-l", "--user", type=str, action="store", required=False, help="specify static username to try "
                                                                                      "on login")
     # TODO: check if this is set in main() and change program logic completely (i.e., you don't replace password in
@@ -61,7 +59,8 @@ def crack(pURL, pData):
 
 
 """
-Main program logic; Create threads and start them.
+Main program logic; Get passwords from dictionary, modify POST data; 
+Create threads and start them.
 """
 def main():
     global thread_count, args
