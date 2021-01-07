@@ -44,7 +44,7 @@ def parse_arguments():
     args = parser.parse_args()
 
 
-"""
+"""a
 Craft POST request and send it; Check response body for login error message;
 If the message is not present then a match was found.
 """
