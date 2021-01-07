@@ -5,8 +5,9 @@ from termcolor import colored
 
 DEFAULT_THREAD_NO = 10
 
-EXIT_SUCCESS = 0
+EXIT_FLAG = 0
 ERR_FILEOPEN = 100
+EXIT_SUCCESS = 0
 
 thread_count = None
 args = None
@@ -52,10 +53,6 @@ def crack(pURL, pData):
         print("[!] Attempting " + str(pData) + "\n")
     pData = pData[:-1]
     r = requests.post(url=pURL, data=pData,proxies=proxies,headers=headers)
-
-    print (r.request)
-
-
     r.close()
 
     test = args.message
@@ -63,7 +60,7 @@ def crack(pURL, pData):
 
     if reg is None:  # If the login error message is not read
         print(colored('[+] Found possible match: ', 'green'),colored(str(pData)))
-        exit(EXIT_SUCCESS)
+        EXIT_FLAG = 1
     else:
         print("[!] Invalid creds - "+str(pData)+'\n')
 
@@ -107,6 +104,8 @@ def main():
                 threads.append(thr)
             for i in range(thread_count):
                 threads[i].start()
+                if EXIT_FLAG:
+                    exit(EXIT_SUCCESS)
             for i in range(thread_count):
                 threads[i].join()
             threads = []
