@@ -3,6 +3,7 @@ import argparse
 import re
 import requests
 import threading
+import os
 
 from itertools import islice
 from termcolor import colored
@@ -94,6 +95,10 @@ Create threads and start them.
 def main():
     global thread_count, args, EXIT_FLAG, tests
 
+    if os.stat(args.dict).st_size == 0:  # Dictionary file is empty
+        print("[x] ")
+        return ERR_FILEMPTY
+
     startTime = time.time()  # Set timestamp 1
     if not args.threads:
         thread_count = DEFAULT_THREAD_NO
@@ -103,42 +108,45 @@ def main():
         print("[!] Running with specified thread count [" + str(thread_count) + "] \n")
 
     reached_EOF = False
-
+    try:
+        infile = open(args.dict, 'r')
+    except Exception as e:
+        print("[x] Error opening dictionary file: ", e, "\n")
+        return ERR_FILEOPEN
     threads = []  # List of threads
-    # Read through all passwords in the dictionary file in batches of 'thread_count' items
-    with open(args.dict, 'r') as infile:
-        while not reached_EOF:
-            # 'passwords_batch' is a generator object, can be used in a loop
-            list_batch = list(islice(infile, thread_count))
-            # Remove \n and similar characters from all passwords
-            list_batch = [p.strip() for p in list_batch]
-            batch_length = len(list_batch)
-            if batch_length <= 0:  # If the file is empty
-                return
-            if batch_length < thread_count:  # Reached end of dictionary
-                reached_EOF = True
-            thread_count = min(batch_length, thread_count)  # Create one thread per password read from dictionary file
-            for i in range(thread_count):
-                pattern = "([a-zA-Z]+)=(.+)&([a-zA-Z]+)=(.+)"
-                if args.user is True:
-                    repl = "\\1=" + str(list_batch[i]) + "&\\3=\\4"
-                else:
-                    repl = "\\1=\\2&\\3=" + str(list_batch[i])
 
-                current_data = re.sub(pattern=pattern, repl=repl, string=args.data)
-                thread_args = (args.url, current_data)
-                # Create 'thread_count' thread objects with appropriate target function & arguments
-                thr = threading.Thread(target=crack, name="thread-" + str(i), args=thread_args)
-                threads.append(thr)
-            for i in range(thread_count):
-                threads[i].start()
-                if EXIT_FLAG:
-                    print("[!] Program run time: ", time.time() - startTime, "\n")
-                    print("[!] Number of attempts: ", tests)
-                    exit(EXIT_SUCCESS)
-            for i in range(thread_count):
-                threads[i].join()
-            threads = []
+    # Read through all passwords in the dictionary file in batches of 'thread_count' items
+    while not reached_EOF:
+        # 'list_batch' is a generator object, can be used in a loop
+        list_batch = list(islice(infile, thread_count))
+        batch_length = len(list_batch)
+        # Remove \n and similar characters from all passwords
+        list_batch = [p.strip() for p in list_batch]
+        if batch_length < thread_count:  # Reached end of dictionary
+            reached_EOF = True
+        thread_count = min(batch_length, thread_count)  # Create one thread per password read from dictionary file
+        for i in range(thread_count):
+            pattern = "([a-zA-Z]+)=(.+)&([a-zA-Z]+)=(.+)"  # Pattern to identify two key-value pairs in POST data
+            if args.user is True:
+                repl = "\\1=" + str(list_batch[i]) + "&\\3=\\4"
+            else:
+                repl = "\\1=\\2&\\3=" + str(list_batch[i])
+            current_data = re.sub(pattern=pattern, repl=repl, string=args.data)
+
+            thread_args = (args.url, current_data)  # Tuple of arguments for crack() function
+            # Create 'thread_count' thread objects with appropriate target function & arguments
+            thr = threading.Thread(target=crack, name="thread-" + str(i), args=thread_args)
+            threads.append(thr)
+
+        for i in range(thread_count):
+            threads[i].start()
+            if EXIT_FLAG:
+                print("[!] Program run time: ", time.time() - startTime, "\n")
+                print("[!] Number of attempts: ", tests)
+                exit(EXIT_SUCCESS)
+        for i in range(thread_count):
+            threads[i].join()
+        threads = []
 
 
 if __name__ == '__main__':
