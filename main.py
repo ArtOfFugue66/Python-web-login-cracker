@@ -84,7 +84,7 @@ def crack(pURL, pData):
     reg = re.search(args.message, r.text)
 
     if reg is None:  # If the login error message is not read
-        print(colored('[+] Found possible match: ', 'green'), str(pData), "\n")
+        print(colored('[+] Found possible match: ', 'green') + str(pData) + "\n")
         EXIT_FLAG = 1  # Set flag to exit main thread
 
     return
@@ -113,7 +113,7 @@ def main():
     try:
         infile = open(args.dict, 'r')
     except Exception as e:
-        print("[x] Error opening dictionary file: ", e, "\n")
+        print("[x] Error opening dictionary file: " + str(e) + "\n")
         return ERR_FILEOPEN
     threads = []  # List of threads
 
@@ -143,8 +143,8 @@ def main():
         for i in range(thread_count):
             threads[i].start()
             if EXIT_FLAG:
-                print("[!] Program run time: ", time.time() - startTime, "\n")
-                print("[!] Number of attempts: ", tests)
+                print("[!] Program run time: " + str(time.time() - startTime), "\n")
+                print("[!] Number of attempts: " + str(tests))
                 exit(EXIT_SUCCESS)
         for i in range(thread_count):
             threads[i].join()
