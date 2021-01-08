@@ -67,8 +67,10 @@ def crack(pURL, pData):
     global args, EXIT_FLAG, tests
 
     if args.verbose:
-        print(colored('[!] Attempting: ', 'cyan'), str(pData), "\n")  # Be verbose
+        print(colored('[!] Attempting: ', 'cyan') + str(pData) + "\n")  # Be verbose
     tests = tests + 1  # Count number of attempts
+
+
 
     # Send POST request to 'pURL' with appropriate data & headers
     if args.proxy:
