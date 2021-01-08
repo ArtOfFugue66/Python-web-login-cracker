@@ -34,7 +34,7 @@ headers = {
 Parse required and optional program arguments.
 """
 def parse_arguments():
-    # TODO: test everything again, with Burp suite
+    # TODO: test everything again, with Burp Suite
     global args
     parser = argparse.ArgumentParser(description="HTTP POST form dictionary cracker")
     parser.add_argument("-u", "--url", type=str, action="store", required=True, help="specify target URL")
@@ -43,24 +43,22 @@ def parse_arguments():
     parser.add_argument("-m", "--message", type=str, action="store", required=True, help="specify login error message "
                                                                                          "(used to check for a "
                                                                                          "password match)")
-    parser.add_argument("-l", "--user", type=str, action="store", required=False, help="specify static username to try "
-                                                                                       "on login")
-    # TODO: check if this is set in main() and change program logic completely (i.e., you don't replace password in
-    #  'args.data', you replace the username to be used in the request)
-    parser.add_argument("-L", "--user-list", type=str, action="store", required=False, help="specify username list to "
-                                                                                            "use on login tries")
     parser.add_argument("-t", "--threads", type=int, action="store", required=False, help="specify number of threads "
                                                                                           "to use")
     parser.add_argument("-v", "--verbose", action="store_true", required=False, help="specify whether to print login "
                                                                                      "attempts")
     parser.add_argument("-p", "--proxy", action="store_true", required=False, help="specify whether to use "
-                                                                                    "localhost:8080 proxy ("
-                                                                                    "for debugging purposes, "
-                                                                                    "use with Burpsuite)")
+                                                                                   "localhost:8080 proxy ("
+                                                                                   "for debugging purposes, "
+                                                                                   "use with Burp Suite)")
+    parser.add_argument("-l", "--user", action="store_true", required=False, help="try dictionary entries as users "
+                                                                                  "instead of passwords; password "
+                                                                                  "from specified POST data will be "
+                                                                                  "used")
     args = parser.parse_args()
 
 
-"""a
+"""
 Craft POST request and send it; Check response body for login error message;
 If the message is not present then a match was found.
 """
@@ -111,21 +109,25 @@ def main():
     with open(args.dict, 'r') as infile:
         while not reached_EOF:
             # 'passwords_batch' is a generator object, can be used in a loop
-            passwords_batch = list(islice(infile, thread_count))
+            list_batch = list(islice(infile, thread_count))
             # Remove \n and similar characters from all passwords
-            passwords_batch = [p.strip() for p in passwords_batch]
-            batch_length = len(passwords_batch)
+            list_batch = [p.strip() for p in list_batch]
+            batch_length = len(list_batch)
             if batch_length <= 0:  # If the file is empty
                 return
             if batch_length < thread_count:  # Reached end of dictionary
                 reached_EOF = True
             thread_count = min(batch_length, thread_count)  # Create one thread per password read from dictionary file
             for i in range(thread_count):
-                # Create 'thread_count' thread objects with appropriate target function & arguments
-                current_data = re.sub("password=.+", "password=" + str(passwords_batch[i]), string=args.data)
-                if args.user:  # If --username argument is specified, use that username in the request body
-                    current_data = re.sub("username=.+", "username=" + str(args.user), string=current_data)  # FIXME: this does not work properly
+                pattern = "([a-zA-Z]+)=(.+)&([a-zA-Z]+)=(.+)"
+                if args.user is True:
+                    repl = "\\1=" + str(list_batch[i]) + "&\\3=\\4"
+                else:
+                    repl = "\\1=\\2&\\3=" + str(list_batch[i])
+
+                current_data = re.sub(pattern=pattern, repl=repl, string=args.data)
                 thread_args = (args.url, current_data)
+                # Create 'thread_count' thread objects with appropriate target function & arguments
                 thr = threading.Thread(target=crack, name="thread-" + str(i), args=thread_args)
                 threads.append(thr)
             for i in range(thread_count):
